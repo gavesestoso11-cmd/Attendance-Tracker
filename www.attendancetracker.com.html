@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDROI Attendance Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --green: #00e5a0;
+    --amber: #ffb347;
+    --red: #ff4d6d;
+    --text: #f0f0ff;
+    --muted: #7a7a9a;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+
+  /* ── AUTH SCREEN ── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    position: relative;
+  }
+  #auth-screen::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(108,99,255,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  #auth-screen::after {
+    content: '';
+    position: fixed;
+    bottom: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 1;
+  }
+  .auth-logo { font-family: var(--display); font-size: 28px; font-weight: 800; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+  .auth-logo span { color: var(--accent); }
+  .auth-sub { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+  .auth-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 28px; }
+  .auth-tab { flex: 1; padding: 8px; border: none; background: none; color: var(--muted); border-radius: 8px; cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 500; transition: all 0.2s; }
+  .auth-tab.active { background: var(--surface2); color: var(--text); }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; font-family: var(--mono); }
+  .field input, .field select {
+    width: 100%; padding: 12px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: var(--sans); font-size: 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select option { background: var(--bg); }
+  .btn-primary {
+    width: 100%; padding: 13px;
+    background: var(--accent); border: none; border-radius: 10px;
+    color: #fff; font-family: var(--display); font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+    margin-top: 8px;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { transform: scale(0.98); }
+  .demo-hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 16px; font-family: var(--mono); }
+
+  /* ── APP SHELL ── */
+  #app { display: none; min-height: 100vh; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-bottom: 1px solid var(--border);
+    background: var(--surface); position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-logo { font-family: var(--display); font-size: 20px; font-weight: 800; }
+  .topbar-logo span { color: var(--accent); }
+  .topbar-user { display: flex; align-items: center; gap: 12px; }
+  .topbar-badge {
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    font-family: var(--mono); letter-spacing: 0.05em;
+  }
+  .badge-admin { background: rgba(108,99,255,0.15); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+  .badge-user { background: rgba(0,229,160,0.1); color: var(--green); border: 1px solid rgba(0,229,160,0.3); }
+  .topbar-name { font-size: 13px; color: var(--muted); }
+  .btn-logout { padding: 6px 14px; border: 1px solid var(--border); background: none; color: var(--muted); border-radius: 8px; cursor: pointer; font-size: 12px; font-family: var(--sans); transition: all 0.2s; }
+  .btn-logout:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── USER VIEW ── */
+  #user-view { padding: 40px 28px; max-width: 600px; margin: 0 auto; }
+  .user-greeting { font-family: var(--display); font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .user-date { color: var(--muted); font-size: 14px; font-family: var(--mono); margin-bottom: 36px; }
+
+  .tracker-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 20px;
+  }
+  .status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+  .dot-idle { background: var(--muted); }
+  .dot-working { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  .dot-break { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse 2s infinite; }
+  .dot-overtime { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); animation: pulse 2s infinite; }
+  .dot-done { background: var(--muted); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .status-label { font-size: 13px; font-family: var(--mono); color: var(--muted); }
+  .status-label strong { color: var(--text); }
+  .clock-display {
+    font-family: var(--mono); font-size: 52px; font-weight: 500;
+    text-align: center; letter-spacing: -0.02em;
+    margin: 8px 0 32px;
+    background: linear-gradient(135deg, var(--text), var(--muted));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .action-btn {
+    padding: 16px 12px; border-radius: 14px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); font-family: var(--display);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; position: relative; overflow: hidden;
+  }
+  .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .action-btn:not(:disabled):hover { border-color: var(--accent); background: rgba(108,99,255,0.08); transform: translateY(-1px); }
+  .action-btn .btn-icon { font-size: 22px; }
+  .action-btn.btn-timein { border-color: rgba(0,229,160,0.4); }
+  .action-btn.btn-timein:not(:disabled):hover { border-color: var(--green); background: rgba(0,229,160,0.08); }
+  .action-btn.btn-break { border-color: rgba(255,179,71,0.4); }
+  .action-btn.btn-break:not(:disabled):hover { border-color: var(--amber); background: rgba(255,179,71,0.08); }
+  .action-btn.btn-back { border-color: rgba(108,99,255,0.4); }
+  .action-btn.btn-timeout { border-color: rgba(255,77,109,0.4); }
+  .action-btn.btn-timeout:not(:disabled):hover { border-color: var(--red); background: rgba(255,77,109,0.08); }
+  .action-btn.btn-overtime { border-color: rgba(255,101,132,0.4); }
+  .action-btn.btn-overtime:not(:disabled):hover { border-color: var(--accent2); background: rgba(255,101,132,0.08); }
+
+  .totals-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .total-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+  }
+  .total-label { font-size: 11px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .total-value { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+  .total-work .total-value { color: var(--green); }
+  .total-break .total-value { color: var(--amber); }
+  .total-ot .total-value { color: var(--accent2); }
+
+  .log-list { list-style: none; }
+  .log-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .log-item:last-child { border-bottom: none; }
+  .log-time { font-family: var(--mono); color: var(--muted); min-width: 75px; font-size: 12px; }
+  .log-event { color: var(--text); }
+  .log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* break warning */
+  .break-bar { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+  .break-bar-label { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .break-progress { height: 6px; background: var(--bg); border-radius: 10px; overflow: hidden; }
+  .break-fill { height: 100%; border-radius: 10px; transition: width 1s linear, background 0.3s; background: var(--green); }
+
+  /* ── ADMIN VIEW ── */
+  #admin-view { padding: 32px 28px; }
+  .admin-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+  .admin-title { font-family: var(--display); font-size: 28px; font-weight: 800; }
+  .admin-sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .btn-export {
+    padding: 10px 20px; background: var(--accent); border: none; border-radius: 10px;
+    color: #fff; font-family: var(--display); font-weight: 700; font-size: 13px;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-export:hover { opacity: 0.85; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .stat-value { font-family: var(--display); font-size: 32px; font-weight: 800; }
+  .sv-green { color: var(--green); }
+  .sv-amber { color: var(--amber); }
+  .sv-red { color: var(--red); }
+  .sv-accent { color: var(--accent); }
+
+  .admin-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+  .admin-table-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .admin-table-title { font-family: var(--display); font-size: 16px; font-weight: 700; }
+  .live-pill { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--mono); color: var(--green); background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.25); padding: 4px 10px; border-radius: 20px; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { padding: 12px 16px; text-align: left; font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid rgba(42,42,61,0.5); transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 14px 16px; vertical-align: middle; }
+  .td-name { font-weight: 500; }
+  .td-mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .status-chip { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-family: var(--mono); font-weight: 500; white-space: nowrap; }
+  .chip-working { background: rgba(0,229,160,0.12); color: var(--green); border: 1px solid rgba(0,229,160,0.25); }
+  .chip-break { background: rgba(255,179,71,0.12); color: var(--amber); border: 1px solid rgba(255,179,71,0.3); }
+  .chip-overbreak { background: rgba(255,77,109,0.15); color: var(--red); border: 1px solid rgba(255,77,109,0.35); animation: pulse 1.5s infinite; }
+  .chip-overtime { background: rgba(255,101,132,0.12); color: var(--accent2); border: 1px solid rgba(255,101,132,0.3); }
+  .chip-done { background: rgba(122,122,154,0.12); color: var(--muted); border: 1px solid var(--border); }
+  .chip-idle { background: rgba(42,42,61,0.6); color: var(--muted); border: 1px solid var(--border); }
+
+  /* Slack modal */
+  .slack-toast {
+    position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+    background: #1a1d21; border: 1px solid #4a154b;
+    border-left: 4px solid #e01e5a;
+    border-radius: 12px; padding: 16px 20px; max-width: 360px;
+    animation: slideIn 0.4s ease;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .slack-toast.to-user { border-left-color: var(--amber); }
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .slack-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .slack-icon { font-size: 16px; }
+  .slack-title { font-size: 12px; font-family: var(--mono); color: #e01e5a; font-weight: 600; }
+  .slack-toast.to-user .slack-title { color: var(--amber); }
+  .slack-msg { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .slack-mention { color: #1d9bd1; font-weight: 600; }
+  .slack-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+  /* Google Sheets sync indicator */
+  .sync-pill { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--mono); color: var(--green); }
+  .sync-spin { width: 10px; height: 10px; border: 1.5px solid var(--green); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .section-title { font-family: var(--display); font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .empty-state { text-align: center; padding: 48px; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+
+  /* Sheet config */
+  .config-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .config-bar input { flex: 1; min-width: 200px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; }
+  .config-bar input:focus { border-color: var(--accent); }
+  .btn-connect { padding: 8px 16px; background: var(--accent); border: none; border-radius: 8px; color: #fff; font-size: 12px; font-family: var(--mono); cursor: pointer; white-space: nowrap; }
+  .connected-label { font-size: 12px; font-family: var(--mono); color: var(--green); display: flex; align-items: center; gap: 6px; }
+
+  .no-scroll { overflow: hidden; }
+
+  .stat-card { cursor: pointer; transition: border-color 0.2s, transform 0.15s; }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-card.sc-green:hover { border-color: var(--green); }
+  .stat-card.sc-amber:hover { border-color: var(--amber); }
+  .stat-card.sc-red:hover { border-color: var(--red); }
+  .stat-card.sc-accent:hover { border-color: var(--accent); }
+  .stat-hint { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 6px; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; width: 100%; max-width: 580px;
+    max-height: 82vh; overflow-y: auto;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform:translateY(20px);opacity:0; } to { transform:translateY(0);opacity:1; } }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); z-index: 1; border-radius: 20px 20px 0 0;
+  }
+  .modal-title { font-family: var(--display); font-size: 18px; font-weight: 700; }
+  .modal-subtitle { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border);
+    background: none; color: var(--muted); cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .modal-close:hover { border-color: var(--accent2); color: var(--accent2); }
+  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-empty { text-align:center; padding:40px; color:var(--muted); font-family:var(--mono); font-size:13px; }
+
+  .muc {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 18px;
+  }
+  .muc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+  .muc-name { font-family: var(--display); font-size: 16px; font-weight: 700; }
+  .muc-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
+  .muc-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+  .muc-cell { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .muc-cell-label { font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px; }
+  .muc-cell-val { font-family: var(--mono); font-size: 15px; font-weight:500; }
+  .muc-breaks { border-top: 1px solid var(--border); padding-top: 10px; }
+  .muc-breaks-title { font-size:10px; color:var(--muted); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
+  .muc-break-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(42,42,61,0.5); font-size:12px; }
+  .muc-break-row:last-child { border-bottom:none; }
+
+  /* ── EXPORT MODAL ── */
+  .export-modal-overlay {
+    position: fixed; inset: 0; z-index: 9500;
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    animation: fadeIn 0.2s ease;
+  }
+  .export-modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; width: 100%; max-width: 440px;
+    animation: slideUp 0.25s ease; overflow: hidden;
+  }
+  .export-modal-header {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .export-modal-title { font-family: var(--display); font-size: 17px; font-weight: 700; }
+  .export-modal-body { padding: 20px 24px; }
+  .export-tab-row { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
+  .export-tab { flex: 1; padding: 8px; border: none; background: none; color: var(--muted); border-radius: 8px; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 500; transition: all 0.2s; }
+  .export-tab.active { background: var(--surface2); color: var(--text); }
+  .export-field { margin-bottom: 14px; }
+  .export-field label { display: block; font-size: 11px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .export-field input, .export-field select {
+    width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  .export-field input:focus, .export-field select:focus { border-color: var(--accent); }
+  .export-field select option { background: var(--bg); }
+  .export-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-export-go { flex: 1; padding: 12px; background: var(--accent); border: none; border-radius: 10px; color: #fff; font-family: var(--display); font-weight: 700; font-size: 14px; cursor: pointer; transition: opacity 0.2s; }
+  .btn-export-go:hover { opacity: 0.88; }
+  .btn-export-cancel { padding: 12px 18px; border: 1px solid var(--border); background: none; color: var(--muted); border-radius: 10px; cursor: pointer; font-family: var(--sans); font-size: 13px; transition: all 0.2s; }
+  .btn-export-cancel:hover { border-color: var(--accent2); color: var(--accent2); }
+  .export-row-count { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 10px; text-align: center; }
+
+  .over-tag { background:rgba(255,77,109,0.15); color:var(--red); border:1px solid rgba(255,77,109,0.3); padding:1px 7px; border-radius:20px; font-size:10px; font-family:var(--mono); margin-left:6px; }
+</style>
+</head>
+<body>
+
+<!-- ── AUTH SCREEN ── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo" style="display:flex;align-items:center;gap:12px;font-size:22px;letter-spacing:0.04em"><svg width="38" height="30" viewBox="0 0 38 30" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="17" height="17" rx="4" fill="#22c55e"/><rect x="5" y="5" width="12" height="12" rx="3" fill="#16a34a"/><rect x="21" y="0" width="17" height="17" rx="4" fill="#22c55e"/><rect x="21" y="5" width="12" height="12" rx="3" fill="#16a34a"/><rect x="0" y="19" width="17" height="11" rx="3" fill="#22c55e"/><rect x="21" y="19" width="17" height="11" rx="3" fill="#22c55e"/></svg><span style="color:#fff;font-family:var(--display);font-weight:800">PDROI</span></div>
+    <div class="auth-sub" style="font-family:var(--mono);letter-spacing:0.08em;font-size:12px;color:var(--muted);margin-top:2px">ATTENDANCE TRACKER</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="setAuthTab('user')">Team Member</button>
+      <button class="auth-tab" onclick="setAuthTab('admin')">Admin</button>
+    </div>
+    <div id="auth-form"></div>
+    <div class="demo-hint">PDROI Attendance Tracker · powered by WorkPulse</div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo" style="display:flex;align-items:center;gap:10px"><svg width="28" height="22" viewBox="0 0 38 30" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="17" height="17" rx="4" fill="#22c55e"/><rect x="5" y="5" width="12" height="12" rx="3" fill="#16a34a"/><rect x="21" y="0" width="17" height="17" rx="4" fill="#22c55e"/><rect x="21" y="5" width="12" height="12" rx="3" fill="#16a34a"/><rect x="0" y="19" width="17" height="11" rx="3" fill="#22c55e"/><rect x="21" y="19" width="17" height="11" rx="3" fill="#22c55e"/></svg><span style="font-weight:800;letter-spacing:0.03em">PDROI <span style="color:var(--accent);font-size:13px;font-weight:600;letter-spacing:0.06em">ATTENDANCE</span></span></div>
+    <div class="topbar-user">
+      <div class="sync-pill" id="sync-indicator" style="display:none">
+        <div class="sync-spin"></div> Syncing to Sheets
+      </div>
+      <span class="topbar-badge" id="role-badge"></span>
+      <span class="topbar-name" id="topbar-name"></span>
+      <button class="btn-logout" onclick="logout()">Log out</button>
+    </div>
+  </div>
+  <div id="user-view"></div>
+  <div id="admin-view" style="display:none"></div>
+</div>
+
+<script>
+// ── STATE ──
+const WORK_HOURS = 9;
+const BREAK_MAX = 60; // minutes
+const WEEKLY_HOURS = 40;
+
+let currentUser = null;
+let currentRole = null;
+let authTab = 'user';
+let tickInterval = null;
+let breakInterval = null;
+let adminRefreshInterval = null;
+
+// Simulated DB
+let sessions = JSON.parse(localStorage.getItem('wp_sessions') || '[]');
+let users = JSON.parse(localStorage.getItem('wp_users') || '[]');
+let admins = JSON.parse(localStorage.getItem('wp_admins') || JSON.stringify([
+  { email: 'admin@company.com', name: 'Admin User', role: 'admin', slackEmail: 'admin@company.com' }
+]));
+
+function saveSessions() {
+  localStorage.setItem('wp_sessions', JSON.stringify(sessions));
+  localStorage.setItem('wp_users', JSON.stringify(users));
+}
+
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function fmtTime(ts) {
+  if (!ts) return '--:--:--';
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false, timeZone: 'America/New_York'
+  });
+}
+
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return '00:00:00';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function fmtHours(ms) {
+  if (!ms || ms < 0) return '0.00h';
+  return (ms / 3600000).toFixed(2) + 'h';
+}
+
+// Get or create today's session for user
+function getSession(email) {
+  const today = getToday();
+  let s = sessions.find(s => s.email === email && s.date === today);
+  if (!s) {
+    s = {
+      email, date: today, name: '', manager: '', department: '', slackEmail: email,
+      timeIn: null, timeOut: null,
+      breaks: [], // [{start, end}]
+      overtime: { start: null, end: null },
+      status: 'idle', // idle | working | break | overtime | done | preshift | postshift
+      overBreakAlerted: false,
+      preShiftOt: null,    // { start, durationMs, end }
+      postShiftOt: null,   // { start, durationMs, end }
+      segments: []         // [{timeIn, timeOut}] for re-clock-in tracking
+    };
+    sessions.push(s);
+  }
+  return s;
+}
+
+function getUserInfo(email) {
+  return users.find(u => u.email === email) || admins.find(a => a.email === email);
+}
+
+// ── COMPUTED ──
+function computeBreakMs(session) {
+  let total = 0;
+  for (const b of session.breaks) {
+    const end = b.end || Date.now();
+    total += end - b.start;
+  }
+  return total;
+}
+
+function computeWorkMs(session) {
+  if (!session.timeIn) return 0;
+  const end = session.timeOut || (session.status === 'done' ? session.timeOut : Date.now());
+  const elapsed = (end || Date.now()) - session.timeIn;
+  return Math.max(0, elapsed - computeBreakMs(session));
+}
+
+function computeOvertimeMs(session) {
+  const work = computeWorkMs(session);
+  const threshold = WORK_HOURS * 3600 * 1000;
+  return Math.max(0, work - threshold);
+}
+
+// ── AUTH ──
+function setAuthTab(tab) {
+  authTab = tab;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0 && tab==='user')||(i===1 && tab==='admin')));
+  renderAuthForm();
+}
+
+function renderAuthForm() {
+  const f = document.getElementById('auth-form');
+  if (authTab === 'user') {
+    f.innerHTML = `
+      <div class="field"><label>Work Email</label><input type="email" id="u-email" placeholder="you@company.com" /></div>
+      <div class="field"><label>Full Name</label><input type="text" id="u-name" placeholder="Your full name" /></div>
+      <div class="field"><label>Manager's Name</label>
+        <select id="u-manager">
+          <option value="">Select manager…</option>
+          <option>TEAM ARTHUR</option>
+          <option>TEAM KARISSA</option>
+          <option>TEAM KRISHIA</option>
+          <option>TEAM THEA</option>
+          <option>TEAM CORY</option>
+          <option>TEAM JULIE</option>
+          <option>TEAM RUBHIE</option>
+          <option>FERTILITY TEAM</option>
+        </select>
+      </div>
+      <div class="field"><label>Department</label>
+        <select id="u-dept">
+          <option value="">Select department…</option>
+          <option>TOI</option><option>NYCB</option><option>PROTILITY</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="loginUser()">Start Tracking →</button>
+    `;
+  } else {
+    f.innerHTML = `
+      <div class="field"><label>Admin Email</label><input type="email" id="a-email" placeholder="admin@company.com" /></div>
+      <div class="field"><label>Full Name</label><input type="text" id="a-name" placeholder="Admin full name" /></div>
+      <div class="field"><label>Admin Password</label><input type="password" id="a-pass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')loginAdmin()" /></div>
+      <button class="btn-primary" onclick="loginAdmin()">Access Dashboard →</button>
+      <div class="demo-hint" style="margin-top:10px">Password is today's date · format: <strong style="color:var(--accent)">MMDDYY</strong></div>
+    `;
+  }
+}
+
+function loginUser() {
+  const email = document.getElementById('u-email').value.trim();
+  const name = document.getElementById('u-name').value.trim();
+  const manager = document.getElementById('u-manager').value.trim();
+  const dept = document.getElementById('u-dept').value;
+  if (!email || !name || !manager || !dept) { alert('Please fill in all fields.'); return; }
+
+  // Save user info
+  let u = users.find(x => x.email === email);
+  if (!u) { u = { email, name, manager, department: dept, role: 'user' }; users.push(u); }
+  else { u.name = name; u.manager = manager; u.department = dept; }
+
+  const s = getSession(email);
+  s.name = name; s.manager = manager; s.department = dept;
+  saveSessions();
+  currentUser = email; currentRole = 'user';
+  showApp();
+}
+
+function loginAdmin() {
+  const email = document.getElementById('a-email').value.trim();
+  const name = document.getElementById('a-name').value.trim();
+  const pass = document.getElementById('a-pass').value;
+  if (!email || !name || !pass) { alert('Please fill in all fields.'); return; }
+
+  // Admin password = today's date in MMDDYY format (e.g. 052126)
+  const _now = new Date();
+  const ADMIN_PASSWORD = [
+    String(_now.getMonth() + 1).padStart(2, '0'),
+    String(_now.getDate()).padStart(2, '0'),
+    String(_now.getFullYear()).slice(-2)
+  ].join('');
+  if (pass !== ADMIN_PASSWORD) {
+    const passField = document.getElementById('a-pass');
+    passField.style.borderColor = 'var(--red)';
+    passField.value = '';
+    passField.placeholder = 'Incorrect password — try again';
+    setTimeout(() => { passField.style.borderColor = ''; passField.placeholder = 'Enter admin password'; }, 2000);
+    return;
+  }
+
+  let a = admins.find(x => x.email === email);
+  if (!a) { a = { email, name, role: 'admin', slackEmail: email }; admins.push(a); localStorage.setItem('wp_admins', JSON.stringify(admins)); }
+  currentUser = email; currentRole = 'admin';
+  showApp();
+}
+
+function logout() {
+  clearInterval(tickInterval);
+  clearInterval(breakInterval);
+  clearInterval(adminRefreshInterval);
+  currentUser = null; currentRole = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('user-view').innerHTML = '';
+  document.getElementById('admin-view').innerHTML = '';
+  document.getElementById('admin-view').style.display = 'none';
+  document.getElementById('user-view').style.display = 'block';
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const info = getUserInfo(currentUser);
+  document.getElementById('topbar-name').textContent = info?.name || currentUser;
+  const badge = document.getElementById('role-badge');
+  badge.textContent = currentRole === 'admin' ? 'Admin' : 'Team Member';
+  badge.className = 'topbar-badge ' + (currentRole === 'admin' ? 'badge-admin' : 'badge-user');
+
+  if (currentRole === 'user') {
+    document.getElementById('user-view').style.display = 'block';
+    document.getElementById('admin-view').style.display = 'none';
+    renderUserView();
+  } else {
+    document.getElementById('user-view').style.display = 'none';
+    document.getElementById('admin-view').style.display = 'block';
+    renderAdminView();
+  }
+}
+
+// ── USER VIEW ──
+function renderUserView() {
+  clearInterval(tickInterval);
+  clearInterval(breakInterval);
+  const session = getSession(currentUser);
+  const info = getUserInfo(currentUser);
+  const now = new Date();
+  const dayStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  document.getElementById('user-view').innerHTML = `
+    <div class="user-greeting">Good ${getGreeting()}, ${(info?.name || '').split(' ')[0]} 👋</div>
+    <div class="user-date">${dayStr}</div>
+    <div class="tracker-card">
+      <div class="status-row">
+        <div style="display:flex;align-items:center">
+          <span class="status-dot" id="status-dot"></span>
+          <span class="status-label" id="status-text"></span>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-family:var(--mono)" id="live-clock"></span>
+      </div>
+      <div class="clock-display" id="elapsed-display">00:00:00</div>
+      <div class="action-buttons">
+        <button class="action-btn btn-timein" id="btn-timein" onclick="doTimeIn()">
+          <span class="btn-icon">▶</span> Time In
+        </button>
+        <button class="action-btn btn-break" id="btn-break" onclick="doBreak()">
+          <span class="btn-icon">☕</span> Break
+        </button>
+        <button class="action-btn btn-back" id="btn-back" onclick="doBackFromBreak()">
+          <span class="btn-icon">↩</span> Back from Break
+        </button>
+        <button class="action-btn btn-timeout" id="btn-timeout" onclick="doTimeOut()">
+          <span class="btn-icon">■</span> Time Out
+        </button>
+        <button class="action-btn btn-preshift" id="btn-preshift" onclick="showOtPicker('pre')">
+          <span class="btn-icon">⚡</span> Pre-Shift OT
+        </button>
+        <button class="action-btn btn-postshift" id="btn-postshift" onclick="showOtPicker('post')">
+          <span class="btn-icon">⚡</span> Post-Shift OT
+        </button>
+        <button class="action-btn btn-reclockin" id="btn-reclockin" onclick="doReClockIn()" style="grid-column:span 2;display:none">
+          <span class="btn-icon">🔄</span> Clock In Again
+        </button>
+      </div>
+      <div id="ot-picker-wrap"></div>
+      <div id="break-bar-wrap"></div>
+    </div>
+    <div class="tracker-card">
+      <div class="section-title">Today's Summary</div>
+      <div class="totals-grid">
+        <div class="total-card total-work"><div class="total-label">Work Time</div><div class="total-value" id="tot-work">0.00h</div></div>
+        <div class="total-card total-break"><div class="total-label">Break Time</div><div class="total-value" id="tot-break">0.00h</div></div>
+        <div class="total-card total-ot"><div class="total-label">Overtime</div><div class="total-value" id="tot-ot">0.00h</div></div>
+      </div>
+    </div>
+    <div class="tracker-card">
+      <div class="section-title">Activity Log</div>
+      <ul class="log-list" id="log-list"></ul>
+    </div>
+  `;
+
+  updateUserUI();
+  tickInterval = setInterval(updateUserUI, 1000);
+  breakInterval = setInterval(checkOverbreak, 5000);
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning'; if (h < 17) return 'afternoon'; return 'evening';
+}
+
+function updateUserUI() {
+  const session = getSession(currentUser);
+  const now = Date.now();
+
+  // Status dot + label
+  const dotEl = document.getElementById('status-dot');
+  const textEl = document.getElementById('status-text');
+  const clockEl = document.getElementById('live-clock');
+  if (!dotEl) return;
+
+  clockEl.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'America/New_York' }) + ' ET';
+
+  const statusMap = {
+    idle:      { dot: 'dot-idle',     label: 'Not started',               elapsed: 0 },
+    working:   { dot: 'dot-working',  label: '<strong>Working</strong>',   elapsed: computeWorkMs(session) },
+    break:     { dot: 'dot-break',    label: '<strong>On Break</strong>',  elapsed: computeBreakMs(session) },
+    overtime:  { dot: 'dot-overtime', label: '<strong>Overtime</strong>',  elapsed: computeOvertimeMs(session) },
+    preshift:  { dot: 'dot-overtime', label: '<strong>Pre-Shift OT</strong>', elapsed: session._preShiftEndsAt ? Math.max(0, session._preShiftEndsAt - Date.now()) : 0 },
+    postshift: { dot: 'dot-overtime', label: '<strong>Post-Shift OT</strong>', elapsed: session.postShiftOt ? Date.now() - session.postShiftOt.start : 0 },
+    done:      { dot: 'dot-done',     label: 'Shift complete',             elapsed: computeWorkMs(session) }
+  };
+  const st = statusMap[session.status] || statusMap.idle;
+  dotEl.className = 'status-dot ' + st.dot;
+  textEl.innerHTML = st.label;
+  document.getElementById('elapsed-display').textContent = fmtDuration(st.elapsed);
+
+  // Totals
+  document.getElementById('tot-work').textContent = fmtHours(computeWorkMs(session));
+  document.getElementById('tot-break').textContent = fmtHours(computeBreakMs(session));
+  document.getElementById('tot-ot').textContent = fmtHours(computeOvertimeMs(session));
+
+  // Break bar
+  const bbWrap = document.getElementById('break-bar-wrap');
+  if (session.status === 'break') {
+    const breakMs = computeBreakMs(session);
+    const pct = Math.min(100, (breakMs / (BREAK_MAX * 60000)) * 100);
+    const color = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--amber)' : 'var(--green)';
+    const minLeft = Math.max(0, Math.round(BREAK_MAX - breakMs / 60000));
+    bbWrap.innerHTML = `
+      <div class="break-bar">
+        <div class="break-bar-label"><span>Break usage</span><span>${minLeft} min remaining</span></div>
+        <div class="break-progress"><div class="break-fill" style="width:${pct}%;background:${color}"></div></div>
+      </div>`;
+  } else { bbWrap.innerHTML = ''; }
+
+  // Button states
+  const b = s => { const el = document.getElementById(s); if (el) { el.disabled = false; el.style.display=''; } };
+  const d = s => { const el = document.getElementById(s); if (el) { el.disabled = true; el.style.display=''; } };
+  const hide = s => { const el = document.getElementById(s); if (el) el.style.display='none'; };
+  const show = s => { const el = document.getElementById(s); if (el) el.style.display=''; };
+
+  // Reset re-clock-in button
+  hide('btn-reclockin');
+
+  if (session.status === 'idle') {
+    b('btn-timein'); d('btn-break'); d('btn-back'); d('btn-timeout');
+    b('btn-preshift'); b('btn-postshift');
+  } else if (session.status === 'preshift') {
+    d('btn-timein'); d('btn-break'); d('btn-back'); d('btn-timeout');
+    d('btn-preshift'); d('btn-postshift');
+  } else if (session.status === 'working') {
+    d('btn-timein'); b('btn-break'); d('btn-back'); b('btn-timeout');
+    d('btn-preshift'); b('btn-postshift');
+  } else if (session.status === 'break') {
+    d('btn-timein'); d('btn-break'); b('btn-back'); d('btn-timeout');
+    d('btn-preshift'); d('btn-postshift');
+  } else if (session.status === 'overtime') {
+    d('btn-timein'); b('btn-break'); d('btn-back'); b('btn-timeout');
+    d('btn-preshift'); d('btn-postshift');
+  } else if (session.status === 'postshift') {
+    d('btn-timein'); b('btn-break'); d('btn-back'); b('btn-timeout');
+    d('btn-preshift'); d('btn-postshift');
+  } else if (session.status === 'done') {
+    d('btn-timein'); d('btn-break'); d('btn-back'); d('btn-timeout');
+    d('btn-preshift'); d('btn-postshift');
+    // Show re-clock-in
+    const rci = document.getElementById('btn-reclockin');
+    if (rci) { rci.style.display = ''; rci.disabled = false; }
+  }
+
+  // OT active bar
+  const otWrap = document.getElementById('ot-picker-wrap');
+  if (otWrap && !otWrap.querySelector('.ot-panel')) {
+    if (session.status === 'preshift' && session.preShiftOt) {
+      const remaining = Math.max(0, (session._preShiftEndsAt || 0) - Date.now());
+      otWrap.innerHTML = `<div class="ot-active-bar"><span class="ot-active-label">⚡ Pre-Shift OT active</span><span class="ot-countdown">Auto time-in in ${fmtDuration(remaining)}</span></div>`;
+    } else if (session.status === 'postshift' && session.postShiftOt) {
+      const remaining = Math.max(0, (session._postShiftEndsAt || 0) - Date.now());
+      otWrap.innerHTML = `<div class="ot-active-bar" style="border-color:rgba(108,99,255,0.3)"><span class="ot-active-label" style="color:var(--accent)">⚡ Post-Shift OT active</span><span class="ot-countdown">${fmtDuration(remaining)} remaining</span></div>`;
+    }
+  }
+
+  // Log
+  renderLog(session);
+}
+
+function renderLog(session) {
+  const list = document.getElementById('log-list');
+  if (!list) return;
+  const events = buildEvents(session);
+  if (!events.length) { list.innerHTML = '<li class="log-item" style="color:var(--muted);font-size:13px">No activity yet.</li>'; return; }
+  list.innerHTML = events.reverse().map(e => `
+    <li class="log-item">
+      <div class="log-dot" style="background:${e.color}"></div>
+      <span class="log-time">${fmtTime(e.ts)}</span>
+      <span class="log-event">${e.label}</span>
+    </li>`).join('');
+}
+
+function buildEvents(session) {
+  const events = [];
+  if (session.preShiftOt?.start) events.push({ ts: session.preShiftOt.start, label: `Pre-Shift OT started (${OT_LABELS[OT_HOURS.indexOf(session.preShiftOt.durationMs/3600000)] || ''})`, color: 'var(--accent)' });
+  if (session.preShiftOt?.end) events.push({ ts: session.preShiftOt.end, label: 'Pre-Shift OT ended — Auto timed in', color: 'var(--green)' });
+  if (session.timeIn) events.push({ ts: session.timeIn, label: 'Timed in', color: 'var(--green)' });
+  // Re-clock-in segments
+  if (session.segments && session.segments.length > 1) {
+    for (let i = 1; i < session.segments.length; i++) {
+      events.push({ ts: session.segments[i].timeIn, label: `Re-clocked in (segment ${i+1})`, color: 'var(--green)' });
+      if (session.segments[i].timeOut) events.push({ ts: session.segments[i].timeOut, label: `Clocked out (segment ${i+1})`, color: 'var(--red)' });
+    }
+  }
+  for (const b of session.breaks) {
+    events.push({ ts: b.start, label: 'Started break', color: 'var(--amber)' });
+    if (b.end) events.push({ ts: b.end, label: 'Back from break', color: 'var(--accent)' });
+  }
+  if (session.overtime?.start) events.push({ ts: session.overtime.start, label: 'Started overtime', color: 'var(--accent2)' });
+  if (session.postShiftOt?.start) events.push({ ts: session.postShiftOt.start, label: `Post-Shift OT started (${OT_LABELS[OT_HOURS.indexOf(session.postShiftOt.durationMs/3600000)] || ''})`, color: 'var(--accent2)' });
+  if (session.postShiftOt?.end) events.push({ ts: session.postShiftOt.end, label: 'Post-Shift OT ended', color: 'var(--muted)' });
+  if (session.timeOut) events.push({ ts: session.timeOut, label: 'Timed out', color: 'var(--red)' });
+  return events.filter(e => e.ts).sort((a,b) => a.ts - b.ts);
+}
+
+// ── ACTIONS ──
+function doTimeIn() {
+  const s = getSession(currentUser);
+  if (s.timeIn && s.status !== 'done') return;
+  const now = Date.now();
+  // If re-clocking in after accidental timeout, push new segment
+  if (s.status === 'done') {
+    s.segments = s.segments || [];
+    s.segments.push({ timeIn: now, timeOut: null, note: 'Re-clock-in' });
+    s.timeOut = null;
+    s.status = 'working';
+  } else {
+    s.timeIn = now;
+    s.status = 'working';
+    s.segments = [{ timeIn: now, timeOut: null, note: 'Initial' }];
+  }
+  saveSessions(); syncToSheets(s); updateUserUI();
+}
+function doBreak() {
+  const s = getSession(currentUser);
+  if (s.status !== 'working' && s.status !== 'overtime' && s.status !== 'postshift') return;
+  s.breaks.push({ start: Date.now(), end: null }); s.status = 'break';
+  saveSessions(); syncToSheets(s); updateUserUI();
+}
+function doBackFromBreak() {
+  const s = getSession(currentUser); if (s.status !== 'break') return;
+  const last = s.breaks[s.breaks.length - 1];
+  if (last && !last.end) last.end = Date.now();
+  // If we were in post-shift before break, return to post-shift
+  s.status = (s.postShiftOt && s.postShiftOt.start && !s.postShiftOt.end) ? 'postshift' : 'working';
+  saveSessions(); syncToSheets(s); updateUserUI();
+}
+function doTimeOut() {
+  const s = getSession(currentUser);
+  if (s.status === 'break') { doBackFromBreak(); }
+  const now = Date.now();
+  s.timeOut = now;
+  // Close last segment
+  if (s.segments && s.segments.length) s.segments[s.segments.length-1].timeOut = now;
+  // End post-shift if active
+  if (s.postShiftOt && s.postShiftOt.start && !s.postShiftOt.end) s.postShiftOt.end = now;
+  if (s.overtime?.start && !s.overtime?.end) s.overtime.end = now;
+  s.status = 'done';
+  saveSessions(); syncToSheets(s); updateUserUI();
+}
+function doReClockIn() {
+  const s = getSession(currentUser);
+  if (s.status !== 'done') return;
+  doTimeIn();
+}
+
+// ── OT PICKER ──
+const OT_HOURS = [1, 1.5, 2, 2.5, 3];
+const OT_LABELS = ['1 Hour', '1½ Hours', '2 Hours', '2½ Hours', '3 Hours'];
+
+function showOtPicker(type) {
+  const s = getSession(currentUser);
+  // Pre-shift: available when idle or already pre-shifting
+  // Post-shift: available when working, overtime, postshift, or done
+  const wrap = document.getElementById('ot-picker-wrap');
+  if (!wrap) return;
+  const title = type === 'pre' ? '⚡ Pre-Shift Overtime — How long?' : '⚡ Post-Shift Overtime — How long?';
+  const opts = OT_LABELS.map((lbl, i) =>
+    `<button class="ot-opt" onclick="confirmOt('${type}', ${OT_HOURS[i]})">${lbl}</button>`
+  ).join('');
+  wrap.innerHTML = `
+    <div class="ot-panel">
+      <div class="ot-panel-title">${title}</div>
+      <div class="ot-options">${opts}</div>
+      <button class="ot-cancel" onclick="cancelOtPicker()">✕ Cancel</button>
+    </div>`;
+}
+
+function cancelOtPicker() {
+  const wrap = document.getElementById('ot-picker-wrap');
+  if (wrap) wrap.innerHTML = '';
+}
+
+function confirmOt(type, hours) {
+  const s = getSession(currentUser);
+  const ms = hours * 3600000;
+  const now = Date.now();
+
+  if (type === 'pre') {
+    s.preShiftOt = { start: now, durationMs: ms, end: null };
+    s.status = 'preshift';
+    // Auto-time-in when pre-shift ends
+    const remaining = ms;
+    // Set a flag; the tick will handle auto time-in
+    s._preShiftEndsAt = now + ms;
+    saveSessions(); cancelOtPicker(); syncToSheets(s); updateUserUI();
+    // Set countdown timer
+    preShiftCountdown(s._preShiftEndsAt);
+  } else {
+    // Post-shift: start tracking post-shift OT from now
+    s.postShiftOt = { start: now, durationMs: ms, end: null };
+    s._postShiftEndsAt = now + ms;
+    // If not already working, auto time-in
+    if (!s.timeIn) {
+      s.timeIn = now;
+      s.segments = [{ timeIn: now, timeOut: null, note: 'Post-shift auto time-in' }];
+    }
+    s.status = 'postshift';
+    saveSessions(); cancelOtPicker(); syncToSheets(s); updateUserUI();
+  }
+}
+
+let _preShiftTimer = null;
+function preShiftCountdown(endsAt) {
+  clearInterval(_preShiftTimer);
+  _preShiftTimer = setInterval(() => {
+    const s = getSession(currentUser);
+    if (!s || s.status !== 'preshift') { clearInterval(_preShiftTimer); return; }
+    if (Date.now() >= endsAt) {
+      clearInterval(_preShiftTimer);
+      // Auto time-in
+      s.preShiftOt.end = Date.now();
+      s.timeIn = Date.now();
+      s.segments = [{ timeIn: s.timeIn, timeOut: null, note: 'Auto time-in after pre-shift OT' }];
+      s.status = 'working';
+      saveSessions(); syncToSheets(s); updateUserUI();
+    }
+  }, 1000);
+}
+
+// ── BREAK ALERT ──
+function checkOverbreak() {
+  const s = getSession(currentUser);
+  if (s.status !== 'break' || s.overBreakAlerted) return;
+  const breakMs = computeBreakMs(s);
+  if (breakMs >= BREAK_MAX * 60000) {
+    s.overBreakAlerted = true;
+    saveSessions();
+    showSlackNotification('user', s);
+    showSlackNotification('admin', s);
+  }
+}
+
+function showSlackNotification(type, session) {
+  const info = getUserInfo(session.email);
+  const toast = document.createElement('div');
+  toast.className = 'slack-toast' + (type === 'user' ? ' to-user' : '');
+
+  const adminInfo = admins.find(a => a.email === session.manager) || admins[0];
+  const adminMention = adminInfo ? `<span class="slack-mention">@${(adminInfo.name||'Admin').replace(/ /g,'.')}</span>` : '<span class="slack-mention">@admin</span>';
+  const userMention = `<span class="slack-mention">@${(info?.name||session.email).replace(/ /g,'.')}</span>`;
+
+  let msg = '';
+  if (type === 'admin') {
+    msg = `${adminMention} — ${userMention} has exceeded the 1-hour break limit. Please follow up.`;
+  } else {
+    msg = `${userMention} — ⚠️ <strong>YOU ARE OVERBREAK.</strong> You have exceeded your 1-hour break limit. Please return to work immediately.`;
+  }
+
+  toast.innerHTML = `
+    <button class="slack-close" onclick="this.parentElement.remove()">×</button>
+    <div class="slack-header">
+      <span class="slack-icon">${type === 'admin' ? '🔔' : '⚠️'}</span>
+      <span class="slack-title">Slack · #${type === 'admin' ? 'hr-alerts' : 'direct-message'}</span>
+    </div>
+    <div class="slack-msg">${msg}</div>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.style.opacity = '0', 8000);
+  setTimeout(() => toast.remove(), 8500);
+}
+
+// ── SYNC ──
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxkqalkWSPOqiuUI0Co4h5zw-JVk7rXTM_dM-MBhAfSZ-wuUGFGPwpKrDxaIrbTxJpYLw/exec";
+
+function triggerSync() {
+  const ind = document.getElementById('sync-indicator');
+  if (ind) ind.style.display = 'flex';
+}
+
+function hideSyncIndicator() {
+  const ind = document.getElementById('sync-indicator');
+  if (ind) ind.style.display = 'none';
+}
+
+function fmtTimeStr(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false, timeZone: 'America/New_York'
+  });
+}
+
+function fmtHoursStr(ms) {
+  if (!ms || ms < 0) return '0.00';
+  return (ms / 3600000).toFixed(2);
+}
+
+async function syncToSheets(session) {
+  triggerSync();
+
+  // Status map — only these 4 values go to the sheet
+  const statusLabel = {
+    working:   'Clocked In',
+    break:     'Break',
+    overtime:  'Overtime',
+    done:      'Clocked Out',
+    idle:      'Not Started',
+    preshift:  'Pre-Shift OT',
+    postshift: 'Post-Shift OT'
+  };
+
+  // Get the most recent break entry
+  const lastBreak = session.breaks.length ? session.breaks[session.breaks.length - 1] : null;
+
+  const payload = {
+    date:               session.date,
+    name:               session.name,
+    email:              session.email,
+    department:         session.department,
+    manager:            session.manager,
+    timeIn:             fmtTimeStr(session.timeIn),
+    breakStart:         lastBreak ? fmtTimeStr(lastBreak.start) : '',
+    backFromBreak:      lastBreak && lastBreak.end ? fmtTimeStr(lastBreak.end) : '',
+    timeOut:            fmtTimeStr(session.timeOut),
+    totalWorkHours:     fmtDuration(computeWorkMs(session)),
+    totalBreakHours:    fmtDuration(computeBreakMs(session)),
+    totalOvertimeHours: fmtDuration(computeOvertimeMs(session)),
+    preShiftOtStart:    session.preShiftOt ? fmtTimeStr(session.preShiftOt.start) : '',
+    preShiftOtEnd:      session.preShiftOt?.end ? fmtTimeStr(session.preShiftOt.end) : '',
+    postShiftOtStart:   session.postShiftOt ? fmtTimeStr(session.postShiftOt.start) : '',
+    postShiftOtEnd:     session.postShiftOt?.end ? fmtTimeStr(session.postShiftOt.end) : '',
+    reClockInCount:     session.segments ? Math.max(0, session.segments.length - 1) : 0,
+    status:             statusLabel[session.status] || 'Clocked In'
+  };
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.warn('Sync failed:', err);
+  } finally {
+    setTimeout(hideSyncIndicator, 1200);
+  }
+}
+
+// ── ADMIN VIEW ──
+function renderAdminView() {
+  clearInterval(adminRefreshInterval);
+  document.getElementById('admin-view').innerHTML = buildAdminHTML();
+  adminRefreshInterval = setInterval(() => {
+    document.getElementById('admin-view').innerHTML = buildAdminHTML();
+  }, 5000);
+}
+
+function manualRefreshAdmin() {
+  sessions = JSON.parse(localStorage.getItem('wp_sessions') || '[]');
+  document.getElementById('admin-view').innerHTML = buildAdminHTML();
+}
+
+function logoutAllUsers() {
+  if (!confirm('Log out ALL currently active users? This will clock out everyone who is working or on break.')) return;
+  const today = getToday();
+  const now = Date.now();
+  let count = 0;
+  sessions.forEach(s => {
+    if (s.date === today && s.status !== 'idle' && s.status !== 'done') {
+      if (s.status === 'break') {
+        const last = s.breaks[s.breaks.length - 1];
+        if (last && !last.end) last.end = now;
+      }
+      if (s.segments && s.segments.length) s.segments[s.segments.length-1].timeOut = now;
+      if (s.postShiftOt?.start && !s.postShiftOt?.end) s.postShiftOt.end = now;
+      if (s.overtime?.start && !s.overtime?.end) s.overtime.end = now;
+      s.timeOut = now;
+      s.status = 'done';
+      count++;
+    }
+  });
+  localStorage.setItem('wp_sessions', JSON.stringify(sessions));
+  manualRefreshAdmin();
+  alert(`✓ ${count} user${count !== 1 ? 's' : ''} have been clocked out.`);
+}
+
+function buildAdminHTML() {
+  const today = getToday();
+  const todaySessions = sessions.filter(s => s.date === today);
+  const working = todaySessions.filter(s => s.status === 'working' || s.status === 'overtime').length;
+  const onBreak = todaySessions.filter(s => s.status === 'break').length;
+  const overbreak = todaySessions.filter(s => {
+    if (s.status !== 'break') return false;
+    return computeBreakMs(s) >= BREAK_MAX * 60000;
+  }).length;
+  const done = todaySessions.filter(s => s.status === 'done').length;
+  const idle = todaySessions.filter(s => s.status === 'idle').length;
+
+  const sortedSessions = [...todaySessions].sort((a, b) => {
+    const breakDiff = computeBreakMs(b) - computeBreakMs(a);
+    if (breakDiff !== 0) return breakDiff;
+    const workDiff = computeWorkMs(b) - computeWorkMs(a);
+    if (workDiff !== 0) return workDiff;
+    return computeOvertimeMs(b) - computeOvertimeMs(a);
+  });
+
+  const tableRows = sortedSessions.length ? sortedSessions.map(s => {
+    const chip = statusChip(s);
+    const otType = s.preShiftOt ? '⚡ Pre' : s.postShiftOt ? '⚡ Post' : '—';
+    const reClockCount = s.segments ? Math.max(0, s.segments.length - 1) : 0;
+    const reClockCell = reClockCount > 0 ? `<span style="color:var(--amber);font-family:var(--mono);font-size:11px">×${reClockCount}</span>` : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td class="td-name">${s.name || s.email}</td>
+      <td class="td-mono">${s.email}</td>
+      <td class="td-mono">${s.department || '—'}</td>
+      <td class="td-mono">${s.manager || '—'}</td>
+      <td>${chip}</td>
+      <td class="td-mono">${fmtTime(s.timeIn)}</td>
+      <td class="td-mono">${fmtHours(computeWorkMs(s))}</td>
+      <td class="td-mono">${fmtHours(computeBreakMs(s))}</td>
+      <td class="td-mono">${fmtHours(computeOvertimeMs(s))}</td>
+      <td class="td-mono" style="color:var(--accent2)">${otType}</td>
+      <td class="td-mono">${reClockCell}</td>
+      <td class="td-mono">${fmtTime(s.timeOut)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="12"><div class="empty-state">No team members have clocked in today</div></td></tr>`;
+
+  return `
+    <div class="admin-header">
+      <div>
+        <div class="admin-title">PDROI Attendance Dashboard</div>
+        <div class="admin-sub">Live overview · ${new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })}</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="live-pill"><div class="live-dot"></div> Live</div>
+        <button class="btn-refresh" onclick="manualRefreshAdmin()">↻ Refresh</button>
+        <button class="btn-export" onclick="openExportModal()">⬇ Export CSV</button>
+        <button class="btn-logoutall" onclick="logoutAllUsers()">⏏ Log Out All Users</button>
+      </div>
+    </div>
+
+    <div class="config-bar">
+      <span style="font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap">📊 Google Sheets URL:</span>
+      <input type="text" id="sheets-url" placeholder="https://docs.google.com/spreadsheets/d/..." value="${localStorage.getItem('wp_sheets_url')||'https://script.google.com/macros/s/AKfycbxkqalkWSPOqiuUI0Co4h5zw-JVk7rXTM_dM-MBhAfSZ-wuUGFGPwpKrDxaIrbTxJpYLw/exec'}" />
+      <button class="btn-connect" onclick="connectSheets()">Connect</button>
+      ${localStorage.getItem('wp_sheets_url') ? '<span class="connected-label">✓ Connected</span>' : ''}
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card sc-green" onclick="openModal('working')">
+        <div class="stat-label">Working</div><div class="stat-value sv-green">${working}</div>
+        <div class="stat-hint">click to view →</div>
+      </div>
+      <div class="stat-card sc-amber" onclick="openModal('break')">
+        <div class="stat-label">On Break</div><div class="stat-value sv-amber">${onBreak}</div>
+        <div class="stat-hint">click to view →</div>
+      </div>
+      <div class="stat-card sc-red" onclick="openModal('overbreak')">
+        <div class="stat-label">Overbreak ⚠</div><div class="stat-value sv-red">${overbreak}</div>
+        <div class="stat-hint">click to view →</div>
+      </div>
+      <div class="stat-card sc-accent" onclick="openModal('overtime')">
+        <div class="stat-label">Overtime</div><div class="stat-value sv-accent">${todaySessions.filter(s=>s.status==='overtime').length}</div>
+        <div class="stat-hint">click to view →</div>
+      </div>
+      <div class="stat-card" onclick="openModal('done')">
+        <div class="stat-label">Clocked Out</div><div class="stat-value" style="color:var(--muted)">${done}</div>
+        <div class="stat-hint">click to view →</div>
+      </div>
+    </div>
+
+    <div class="admin-table-wrap">
+      <div class="admin-table-header">
+        <span class="admin-table-title">Today's Attendance</span>
+        <div class="live-pill"><div class="live-dot"></div> Auto-refreshes every 5s</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Full Name</th><th>Email</th><th>Department</th><th>Manager</th>
+            <th>Status</th><th>Time In (ET)</th><th>Work Hrs</th><th>Break Hrs</th><th>Overtime</th><th>OT Type</th><th>Re-In</th><th>Time Out (ET)</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function statusChip(s) {
+  const breakMs = computeBreakMs(s);
+  if (s.status === 'break' && breakMs >= BREAK_MAX * 60000) return '<span class="status-chip chip-overbreak">⚠ Overbreak</span>';
+  const map = { idle:'chip-idle', working:'chip-working', break:'chip-break', overtime:'chip-overtime', done:'chip-done', preshift:'chip-overtime', postshift:'chip-overtime' };
+  const labels = { idle:'—', working:'Clocked In', break:'Break', overtime:'Overtime', done:'Clocked Out', preshift:'Pre-Shift OT', postshift:'Post-Shift OT' };
+  return `<span class="status-chip ${map[s.status]||'chip-idle'}">${labels[s.status]||'—'}</span>`;
+}
+
+function connectSheets() {
+  const url = document.getElementById('sheets-url')?.value?.trim();
+  if (!url) { alert('Please enter a Google Sheets URL.'); return; }
+  localStorage.setItem('wp_sheets_url', url);
+  alert('✓ Google Sheets connected!\n\nIn a production deployment, use the Google Sheets API with a service account to push rows on each time event. This demo simulates that sync.');
+  renderAdminView();
+}
+
+// ── EXPORT MODAL ──
+let exportMode = 'day'; // 'day' | 'month'
+
+function openExportModal() {
+  if (document.getElementById('export-modal')) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'export-modal-overlay';
+  overlay.id = 'export-modal';
+  overlay.innerHTML = buildExportModalHTML();
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeExportModal(); });
+  document.body.appendChild(overlay);
+  setExportTab('day');
+}
+
+function buildExportModalHTML() {
+  // Gather available dates and months from sessions
+  const allDates = [...new Set(sessions.map(s => s.date))].sort().reverse();
+  const allMonths = [...new Set(allDates.map(d => d.slice(0,7)))].sort().reverse();
+
+  const dateOptions = allDates.length
+    ? allDates.map(d => `<option value="${d}"${d === getToday() ? ' selected' : ''}>${formatDateLabel(d)}</option>`).join('')
+    : `<option value="${getToday()}">${formatDateLabel(getToday())}</option>`;
+
+  const monthOptions = allMonths.length
+    ? allMonths.map(m => `<option value="${m}"${m === getToday().slice(0,7) ? ' selected' : ''}>${formatMonthLabel(m)}</option>`).join('')
+    : `<option value="${getToday().slice(0,7)}">${formatMonthLabel(getToday().slice(0,7))}</option>`;
+
+  return `
+    <div class="export-modal-box">
+      <div class="export-modal-header">
+        <div class="export-modal-title">⬇ Export Attendance Data</div>
+        <button class="modal-close" onclick="closeExportModal()">×</button>
+      </div>
+      <div class="export-modal-body">
+        <div class="export-tab-row">
+          <button class="export-tab active" id="etab-day" onclick="setExportTab('day')">📅 By Date</button>
+          <button class="export-tab" id="etab-month" onclick="setExportTab('month')">🗓 By Month</button>
+        </div>
+        <div id="export-day-panel" class="export-field">
+          <label>Select Date</label>
+          <select id="export-date-select" onchange="updateExportCount()">${dateOptions}</select>
+        </div>
+        <div id="export-month-panel" class="export-field" style="display:none">
+          <label>Select Month</label>
+          <select id="export-month-select" onchange="updateExportCount()">${monthOptions}</select>
+        </div>
+        <div class="export-row-count" id="export-row-count"></div>
+        <div class="export-actions">
+          <button class="btn-export-cancel" onclick="closeExportModal()">Cancel</button>
+          <button class="btn-export-go" onclick="doExport()">⬇ Download CSV</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function formatDateLabel(d) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' });
+}
+
+function formatMonthLabel(m) {
+  return new Date(m + '-01T12:00:00').toLocaleDateString('en-US', { month:'long', year:'numeric' });
+}
+
+function setExportTab(tab) {
+  exportMode = tab;
+  document.getElementById('etab-day').classList.toggle('active', tab === 'day');
+  document.getElementById('etab-month').classList.toggle('active', tab === 'month');
+  document.getElementById('export-day-panel').style.display = tab === 'day' ? '' : 'none';
+  document.getElementById('export-month-panel').style.display = tab === 'month' ? '' : 'none';
+  updateExportCount();
+}
+
+function updateExportCount() {
+  const countEl = document.getElementById('export-row-count');
+  if (!countEl) return;
+  let rows;
+  if (exportMode === 'day') {
+    const date = document.getElementById('export-date-select')?.value;
+    rows = sessions.filter(s => s.date === date);
+  } else {
+    const month = document.getElementById('export-month-select')?.value;
+    rows = sessions.filter(s => s.date.startsWith(month));
+  }
+  countEl.textContent = rows.length ? `${rows.length} record${rows.length !== 1 ? 's' : ''} found` : 'No records found for this period';
+}
+
+function closeExportModal() {
+  const m = document.getElementById('export-modal');
+  if (m) m.remove();
+}
+
+function doExport() {
+  let rows, filename, label;
+  if (exportMode === 'day') {
+    const date = document.getElementById('export-date-select')?.value;
+    rows = sessions.filter(s => s.date === date);
+    filename = `PDROI-Attendance-${date}.csv`;
+    label = formatDateLabel(date);
+  } else {
+    const month = document.getElementById('export-month-select')?.value;
+    rows = sessions.filter(s => s.date.startsWith(month));
+    filename = `PDROI-Attendance-${month}.csv`;
+    label = formatMonthLabel(month);
+  }
+  if (!rows.length) { alert('No records found for the selected period.'); return; }
+
+  const headers = ['Full Name','Email','Department','Manager','Date','Time In (ET)','Time Out (ET)','Work Hours','Break Hours','Overtime Hours','OT Type','Re-Clock-In Count','Pre-Shift OT Start','Pre-Shift OT End','Post-Shift OT Start','Post-Shift OT End','Status'];
+  const csv = [headers.join(','), ...rows.map(s => [
+    `"${s.name}"`, `"${s.email}"`, `"${s.department}"`, `"${s.manager}"`, s.date,
+    `"${fmtTime(s.timeIn)}"`, `"${fmtTime(s.timeOut)}"`,
+    (computeWorkMs(s)/3600000).toFixed(2),
+    (computeBreakMs(s)/3600000).toFixed(2),
+    (computeOvertimeMs(s)/3600000).toFixed(2),
+    s.preShiftOt ? 'Pre-Shift' : s.postShiftOt ? 'Post-Shift' : '—',
+    s.segments ? Math.max(0, s.segments.length - 1) : 0,
+    s.preShiftOt ? `"${fmtTime(s.preShiftOt.start)}"` : '""',
+    s.preShiftOt?.end ? `"${fmtTime(s.preShiftOt.end)}"` : '""',
+    s.postShiftOt ? `"${fmtTime(s.postShiftOt.start)}"` : '""',
+    s.postShiftOt?.end ? `"${fmtTime(s.postShiftOt.end)}"` : '""',
+    `"${s.status}"`
+  ].join(','))].join('\n');
+
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = filename;
+  a.click();
+  closeExportModal();
+}
+
+// Legacy alias
+function exportCSV() { openExportModal(); }
+
+
+// ── MODAL ──
+function openModal(filter) {
+  const today = getToday();
+  let pool = sessions.filter(s => s.date === today);
+  const titles = {
+    working: 'Currently Working',
+    break: 'On Break',
+    overbreak: 'Overbreak ⚠',
+    overtime: 'On Overtime',
+    done: 'Clocked Out'
+  };
+  if (filter === 'overbreak') {
+    pool = pool.filter(s => s.status === 'break' && computeBreakMs(s) >= BREAK_MAX * 60000);
+  } else if (filter === 'working') {
+    pool = pool.filter(s => s.status === 'working');
+  } else if (filter === 'overtime') {
+    pool = pool.filter(s => s.status === 'overtime');
+  } else {
+    pool = pool.filter(s => s.status === filter);
+  }
+
+  // Smart sort: highest break always wins, then work hours, then overtime
+  pool.sort((a, b) => {
+    const breakDiff = computeBreakMs(b) - computeBreakMs(a);
+    if (breakDiff !== 0) return breakDiff;
+    const workDiff = computeWorkMs(b) - computeWorkMs(a);
+    if (workDiff !== 0) return workDiff;
+    return computeOvertimeMs(b) - computeOvertimeMs(a);
+  });
+
+  const cards = pool.length ? pool.map(s => {
+    const breakMs = computeBreakMs(s);
+    const workMs = computeWorkMs(s);
+    const otMs = computeOvertimeMs(s);
+    const isOver = breakMs >= BREAK_MAX * 60000;
+    const breakDetail = s.breaks.map((b, i) => {
+      const dur = (b.end || Date.now()) - b.start;
+      const over = dur >= BREAK_MAX * 60000;
+      return `<div class="muc-break-row">
+        <span class="muc-break-label">Break ${i+1} — ${fmtTime(b.start)} → ${b.end ? fmtTime(b.end) : '<span style="color:var(--amber)">ongoing</span>'}</span>
+        <span style="font-family:var(--mono);font-size:12px">${fmtDuration(dur)}${over ? '<span class="over-tag">OVER</span>' : ''}</span>
+      </div>`;
+    }).join('') || '<div style="font-size:12px;color:var(--muted);font-family:var(--mono);padding:4px 0">No breaks taken</div>';
+
+    return `<div class="muc">
+      <div class="muc-top">
+        <div>
+          <div class="muc-name">${s.name || s.email}</div>
+          <div class="muc-meta">📧 ${s.email} &nbsp;·&nbsp; 👤 ${s.manager || '—'} &nbsp;·&nbsp; 🏢 ${s.department || '—'}</div>
+        </div>
+        ${isOver ? '<span class="over-tag" style="font-size:11px;padding:4px 10px">OVERBREAK</span>' : ''}
+      </div>
+      <div class="muc-grid">
+        <div class="muc-cell">
+          <div class="muc-cell-label">Time In</div>
+          <div class="muc-cell-val" style="color:var(--green)">${fmtTime(s.timeIn)}</div>
+        </div>
+        <div class="muc-cell">
+          <div class="muc-cell-label">Work Time</div>
+          <div class="muc-cell-val" style="color:var(--green)">${fmtDuration(workMs)}</div>
+        </div>
+        <div class="muc-cell">
+          <div class="muc-cell-label">Break Time</div>
+          <div class="muc-cell-val" style="color:${isOver ? 'var(--red)' : 'var(--amber)'}">${fmtDuration(breakMs)}</div>
+        </div>
+        <div class="muc-cell">
+          <div class="muc-cell-label">Overtime</div>
+          <div class="muc-cell-val" style="color:var(--accent2)">${fmtDuration(otMs)}</div>
+        </div>
+        <div class="muc-cell">
+          <div class="muc-cell-label">Time Out</div>
+          <div class="muc-cell-val" style="color:var(--muted)">${s.timeOut ? fmtTime(s.timeOut) : '—'}</div>
+        </div>
+        <div class="muc-cell">
+          <div class="muc-cell-label">Status</div>
+          <div class="muc-cell-val" style="font-size:12px">${statusChip(s)}</div>
+        </div>
+      </div>
+      <div class="muc-breaks">
+        <div class="muc-breaks-title">Break log</div>
+        ${breakDetail}
+      </div>
+    </div>`;
+  }).join('') : '<div class="modal-empty">No team members in this category right now.</div>';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'detail-modal';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">${titles[filter] || filter}</div>
+          <div class="modal-subtitle">${pool.length} team member${pool.length !== 1 ? 's' : ''} · Live data</div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">${cards}</div>
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+  document.body.appendChild(overlay);
+}
+
+function closeModal() {
+  const m = document.getElementById('detail-modal');
+  if (m) m.remove();
+}
+
+// ── INIT ──
+renderAuthForm();
+
+// Background sync every 2 minutes for live totals
+setInterval(() => {
+  if (currentUser && currentRole === 'user') {
+    const s = getSession(currentUser);
+    if (['working','break','overtime','preshift','postshift'].includes(s.status)) {
+      syncToSheets(s);
+    }
+  }
+}, 120000);
+</script>
+</body>
+</html>
